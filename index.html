@@ -1,1 +1,73 @@
-<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>cesgpt — AI assistant</title><style>body{background:#0b1020;color:#f2f6ff;font:16px system-ui;margin:0}main{max-width:720px;margin:auto;padding:25px}h1{font-size:42px}p,small{color:#a8b4cb}#chat{min-height:240px;background:#151d31;border-radius:16px;padding:16px;margin:20px 0;white-space:pre-wrap}.msg{padding:12px;margin:10px 0;border-radius:12px;background:#24304c}.user{background:#24483f}form{display:flex;gap:8px}input{flex:1;min-width:0;background:#1a263e;color:white;border:1px solid #52627b;border-radius:12px;padding:13px;font:inherit}button{background:#8fe2c3;color:#08231c;border:0;border-radius:12px;padding:13px;font-weight:700}a{color:#8fe2c3}</style></head><body><main><h1>cesgpt</h1><p>Твій AI-помічник. Працює через зовнішню мовну модель; доступність залежить від провайдера.</p><div id="chat" aria-live="polite">cesgpt: Привіт! Чим можу допомогти?</div><form id="form"><input id="message" placeholder="Напиши повідомлення..." required maxlength="4000"><button>Надіслати</button></form><p><small>Без облікового запису на цій сторінці. Публічний сервіс може мати ліміти. Не надсилай секретні дані.</small></p></main><script>const chat=document.querySelector('#chat'),form=document.querySelector('#form'),input=document.querySelector('#message'),history=[];function add(w,t,cls){const d=document.createElement('div');d.className='msg '+cls;d.textContent=w+': '+t;chat.append(d)}form.addEventListener('submit',async e=>{e.preventDefault();const message=input.value.trim();if(!message)return;input.value='';add('Ти',message,'user');const btn=form.querySelector('button');btn.disabled=true;try{const r=await fetch('https://hgvvnfzevklbanudjaff.supabase.co/functions/v1/cesgpt',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({message,history})});const data=await r.json();if(!r.ok)throw Error(data.error||'Сервер тимчасово недоступний');add('cesgpt',data.reply,'');history.push({role:'user',content:message},{role:'assistant',content:data.reply});if(history.length>16)history.splice(0,2)}catch(err){add('Помилка',err.message,'')}finally{btn.disabled=false}})</script></body></html>
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0c1020"><title>cesgpt • AI chat</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;background:#0b1020;color:#f5f7fc}
+*{box-sizing:border-box}body{margin:0}button,textarea{font:inherit}button{cursor:pointer}
+.app{max-width:850px;margin:auto;height:100dvh;min-height:420px;display:flex;flex-direction:column;background:#10172a}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #29334e}
+.brand{font-size:24px;font-weight:800;letter-spacing:-.8px}.model{color:#94e6c4;font-size:12px;display:block;letter-spacing:0;font-weight:500}
+.actions{display:flex;gap:8px}button.small{border:1px solid #394967;color:#cdd7ef;border-radius:12px;background:#1b2740;padding:9px 12px;font-size:13px}
+#chat{overflow-y:auto;flex:1;padding:22px 14px;display:flex;flex-direction:column;gap:16px}
+.intro{margin:auto;text-align:center;color:#a9b5cd;max-width:330px;line-height:1.6}.intro strong{font-size:27px;color:#f5f7fc}
+.message{max-width:86%;border-radius:18px;padding:13px 16px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;align-self:flex-start;background:#1f2b45}
+.message.user{align-self:flex-end;background:#255448;color:#fff}.message.error{background:#4b2531}
+.meta{color:#9ba9bf;font-size:11px;margin-bottom:5px}
+footer{border-top:1px solid #29334e;padding:12px 14px calc(12px + env(safe-area-inset-bottom))}
+form{display:flex;align-items:flex-end;gap:8px}textarea{resize:none;flex:1;max-height:160px;min-height:50px;border:1px solid #425173;background:#17233a;border-radius:15px;padding:13px;color:#fff;outline:none}
+textarea:focus{border-color:#87dfbb}.send{border:none;border-radius:14px;padding:14px 18px;background:#87dfbb;color:#10261e;font-weight:800}
+button:disabled{opacity:.5;cursor:default}.hint{text-align:center;color:#8190aa;font-size:11px;margin:10px 0 0}
+</style>
+</head>
+<body><main class="app">
+<header><div class="brand">cesgpt <span class="model">cesgpt 0.8 · пам’ять на цьому пристрої</span></div>
+<div class="actions"><button type="button" class="small" id="exportBtn">Експорт</button><button type="button" class="small" id="clearBtn">Очистити</button></div></header>
+<div id="chat" role="log" aria-live="polite"></div>
+<footer><form id="form"><textarea id="input" aria-label="Ваше повідомлення" maxlength="4000" rows="1" placeholder="Напиши повідомлення…" required></textarea><button class="send" id="send" type="submit">➤</button></form>
+<p class="hint">Історія зберігається лише в цьому браузері. Останні 8 повідомлень надсилаються API для контексту.</p></footer>
+</main>
+<script>
+'use strict';
+const API='https://hgvvnfzevklbanudjaff.supabase.co/functions/v1/cesgpt';
+const STORAGE='cesgpt-chat-v1';
+const chat=document.getElementById('chat'), form=document.getElementById('form');
+const input=document.getElementById('input'), send=document.getElementById('send');
+let messages=[];
+try{
+ const saved=JSON.parse(localStorage.getItem(STORAGE)||'[]');
+ if(Array.isArray(saved)) messages=saved.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string').slice(-200);
+}catch(_){}
+function save(){try{localStorage.setItem(STORAGE,JSON.stringify(messages.slice(-200)))}catch(e){console.warn('Storage unavailable',e)}}
+function append(role,content,isError=false){
+ const wrap=document.createElement('div');wrap.className='message '+(role==='user'?'user':isError?'error':'');
+ const meta=document.createElement('div');meta.className='meta';meta.textContent=role==='user'?'Ти':'cesgpt';
+ const body=document.createElement('div');body.textContent=content;
+ wrap.append(meta,body);chat.append(wrap);chat.scrollTop=chat.scrollHeight;return wrap;
+}
+function render(){
+ chat.replaceChildren();
+ if(!messages.length){const intro=document.createElement('div');intro.className='intro';const title=document.createElement('strong');title.textContent='Привіт! Я cesgpt 👋';const note=document.createElement('p');note.textContent='Напиши щось — я збережу нашу розмову на цьому пристрої.';intro.append(title,note);chat.append(intro)}
+ for(const m of messages)append(m.role,m.content);
+}
+function setBusy(v){send.disabled=v;input.disabled=v;send.textContent=v?'…':'➤'}
+form.addEventListener('submit',async e=>{
+ e.preventDefault();if(send.disabled)return;
+ const text=input.value.trim();if(!text)return;
+ input.value='';messages.push({role:'user',content:text});save();render();setBusy(true);
+ const pending=append('assistant','Думаю…');
+ const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),35000);
+ try{
+  const response=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({message:text,history:messages.slice(0,-1).slice(-8) }),signal:controller.signal});
+  const data=await response.json();
+  if(!response.ok||typeof data.reply!=='string')throw Error(data.error||'Помилка сервера');
+  pending.remove();messages.push({role:'assistant',content:data.reply});save();append('assistant',data.reply);
+ }catch(err){pending.remove();append('assistant','Не вдалося отримати відповідь: '+(err.name==='AbortError'?'час очікування вичерпано':err.message),true)}
+ finally{clearTimeout(timeout);setBusy(false);input.focus()}
+});
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});
+document.getElementById('clearBtn').addEventListener('click',()=>{if(confirm('Видалити всю локальну історію cesgpt?')){messages=[];save();render()}});
+document.getElementById('exportBtn').addEventListener('click',()=>{const file=new Blob([JSON.stringify({assistant:'cesgpt',messages},null,2)],{type:'application/json'});const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download='cesgpt-history.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)});
+render();
+</script></body></html>
